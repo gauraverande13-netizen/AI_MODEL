@@ -12,6 +12,7 @@ from tools.currency_tool import get_currency_exchange_rate
 
 model = genai.GenerativeModel(
     "models/gemini-flash-latest",
+    system_instruction="Your name is Gaurav's AI. You are a helpful and polite AI assistant. If asked about your name, say that you are Gaurav's AI.",
     tools=[get_current_time, get_currency_exchange_rate]
 )
 

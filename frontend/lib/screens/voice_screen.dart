@@ -32,10 +32,10 @@ class _VoiceScreenState extends State<VoiceScreen>
   }
 
   void _initTts() async {
-    await _flutterTts.setLanguage("en-IN"); // Indian accent if supported, or en-US
-    await _flutterTts.setSpeechRate(0.5);
+    await _flutterTts.setLanguage("en-IN"); // Hindi accent
+    await _flutterTts.setSpeechRate(0.7);
     await _flutterTts.setVolume(1.0);
-    await _flutterTts.setPitch(1.0);
+    await _flutterTts.setPitch(1.1);
   }
 
   Future<void> _speak(String text) async {
@@ -206,7 +206,7 @@ class _VoiceScreenState extends State<VoiceScreen>
           child: Row(
             children: [
               _buildQuickChip("⚡ USD to INR rate?"),
-              _buildQuickChip("🕒 Current time in Tokyo?"),
+              _buildQuickChip("🕒 Current time in sangamner?"),
               _buildQuickChip("🚀 Who are you?"),
             ],
           ),

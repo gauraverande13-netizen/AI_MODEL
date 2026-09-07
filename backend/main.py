@@ -44,7 +44,7 @@ async def chat_endpoint(payload: QueryRequest):
                         reply_text += part.text
         
         if not reply_text:
-            reply_text = "Mala samajhla nahi, punha sanga."
+            reply_text = "sorry i don't anderstood , please Tell me again."
 
         # Broad Tool detection (Hindi, English, Marathi)
         tool_tag = None
@@ -62,7 +62,7 @@ async def chat_endpoint(payload: QueryRequest):
         
         error_msg = str(e)
         if "Quota exceeded" in error_msg or "429" in error_msg:
-            return QueryResponse(reply="Google Gemini API ki free limit cross ho gayi hai (rate limit). Kripya 1 minute wait karein aur dobara try karein.", tool_used=None)
+            return QueryResponse(reply="You have exceeded the Google Gemini API free rate limit. Please wait 1 minute and try again.", tool_used=None)
             
         raise HTTPException(status_code=500, detail=error_msg)
 
