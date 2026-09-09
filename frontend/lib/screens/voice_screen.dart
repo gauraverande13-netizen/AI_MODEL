@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
@@ -17,6 +18,9 @@ class _VoiceScreenState extends State<VoiceScreen>
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _flutterTts = FlutterTts();
   
+  final Queue<String> _ttsQueue = Queue<String>();
+  bool _isSpeaking = false;
+
   bool _isListening = false;
   String _text = 'Tap the mic to speak...';
   String _aiResponse = '';
@@ -36,10 +40,23 @@ class _VoiceScreenState extends State<VoiceScreen>
     await _flutterTts.setSpeechRate(0.7);
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.1);
+    await _flutterTts.awaitSpeakCompletion(true);
   }
 
-  Future<void> _speak(String text) async {
-    await _flutterTts.speak(text);
+  Future<void> _processTtsQueue() async {
+    if (_isSpeaking || _ttsQueue.isEmpty) return;
+    
+    _isSpeaking = true;
+    while (_ttsQueue.isNotEmpty) {
+      String text = _ttsQueue.removeFirst();
+      await _flutterTts.speak(text);
+    }
+    _isSpeaking = false;
+  }
+
+  void _queueSpeak(String text) {
+    _ttsQueue.add(text);
+    _processTtsQueue();
   }
 
   void _listen() async {
@@ -88,19 +105,49 @@ class _VoiceScreenState extends State<VoiceScreen>
 
   Future<void> _sendToAI(String message) async {
     setState(() {
-      _aiResponse = 'Thinking...';
+      _aiResponse = '';
     });
+    
+    String sentenceBuffer = '';
+    _ttsQueue.clear();
+    await _flutterTts.stop();
+
     try {
-      final res = await ApiService.sendMessage(message);
-      setState(() {
-        _aiResponse = res.reply;
-      });
-      _speak(res.reply);
+      final stream = ApiService.streamMessage(message);
+      
+      await for (final res in stream) {
+        if (res.reply.isNotEmpty) {
+          setState(() {
+            _aiResponse += res.reply;
+          });
+          
+          sentenceBuffer += res.reply;
+          
+          while (sentenceBuffer.contains(RegExp(r'[.!?]'))) {
+            final match = RegExp(r'[.!?]').firstMatch(sentenceBuffer);
+            if (match != null) {
+                final splitIndex = match.end;
+                final sentenceToSpeak = sentenceBuffer.substring(0, splitIndex).trim();
+                
+                if (sentenceToSpeak.isNotEmpty) {
+                    _queueSpeak(sentenceToSpeak);
+                }
+                
+                sentenceBuffer = sentenceBuffer.substring(splitIndex);
+            }
+          }
+        }
+      }
+      
+      if (sentenceBuffer.trim().isNotEmpty) {
+          _queueSpeak(sentenceBuffer.trim());
+      }
+      
     } catch (e) {
       setState(() {
         _aiResponse = 'Server connection failed.';
       });
-      _speak("Sorry, server connection failed.");
+      _queueSpeak("Sorry, server connection failed.");
     }
   }
 
@@ -205,7 +252,6 @@ class _VoiceScreenState extends State<VoiceScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           child: Row(
             children: [
-              _buildQuickChip("⚡ USD to INR rate?"),
               _buildQuickChip("🕒 Current time in sangamner?"),
               _buildQuickChip("🚀 Who are you?"),
             ],

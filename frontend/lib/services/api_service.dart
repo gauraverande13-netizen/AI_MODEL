@@ -24,25 +24,45 @@ class ApiService {
     }
     if (Platform.isAndroid || Platform.isIOS) {
       // Physical mobile device (aur emulator dono) ke liye PC ka Local IP
-      return "http://172.16.21.161:8000";
+      return "http://127.0.0.1:8000";
     }
     return "http://127.0.0.1:8000";
   }
 
-  static Future<ChatResponse> sendMessage(String message) async {
+  static Stream<ChatResponse> streamMessage(String message) async* {
     final url = Uri.parse('$baseUrl/chat');
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"message": message}),
-    );
+    final request = http.Request('POST', url)
+      ..headers.addAll({"Content-Type": "application/json"})
+      ..body = jsonEncode({"message": message});
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return ChatResponse.fromJson(data);
-    } else {
-      throw Exception("Server Error: ${response.statusCode}");
+    final streamedResponse = await request.send();
+
+    if (streamedResponse.statusCode != 200) {
+      throw Exception("Server Error: ${streamedResponse.statusCode}");
+    }
+
+    final stream = streamedResponse.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+
+    await for (final line in stream) {
+      if (line.trim().isEmpty) continue;
+      
+      try {
+        final data = jsonDecode(line);
+        if (data.containsKey('error')) {
+          throw Exception(data['error']);
+        }
+        
+        yield ChatResponse(
+          reply: data['chunk'] ?? '',
+          toolUsed: data['tool_used'],
+        );
+      } catch (e) {
+        // Skip malformed JSON lines
+        continue;
+      }
     }
   }
 }

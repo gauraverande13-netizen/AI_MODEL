@@ -48,28 +48,32 @@ class _ChatScreenState extends State<ChatScreen> {
     _textController.clear();
     setState(() {
       _messages.add(MessageModel(text: text, isUser: true));
+      // Add empty AI message to stream into
+      _messages.add(MessageModel(text: "", isUser: false));
       _isLoading = true;
     });
     _scrollToBottom();
 
     try {
-      final res = await ApiService.sendMessage(text);
-      setState(() {
-        _messages.add(
-          MessageModel(
-            text: res.reply,
+      final stream = ApiService.streamMessage(text);
+      await for (final res in stream) {
+        setState(() {
+          final lastIndex = _messages.length - 1;
+          final currentMessage = _messages[lastIndex];
+          _messages[lastIndex] = MessageModel(
+            text: currentMessage.text + res.reply,
             isUser: false,
-            toolBadge: res.toolUsed != null ? "⚡ Used: ${res.toolUsed}" : null,
-          ),
-        );
-      });
+            toolBadge: res.toolUsed ?? currentMessage.toolBadge,
+          );
+        });
+        _scrollToBottom();
+      }
     } catch (e) {
       setState(() {
-        _messages.add(
-          MessageModel(
-            text: "Server se connect nahi ho paya. Backend check karein.",
-            isUser: false,
-          ),
+        final lastIndex = _messages.length - 1;
+        _messages[lastIndex] = MessageModel(
+          text: "Server se connect nahi ho paya. Backend check karein.",
+          isUser: false,
         );
       });
     } finally {
