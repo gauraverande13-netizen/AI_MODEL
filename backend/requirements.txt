@@ -10,3 +10,4 @@ passlib[bcrypt]
 chromadb
 requests
 pytz
+python-multipart
